@@ -18,6 +18,9 @@ HEADERS = {
     "Accept": "application/vnd.github.v3+json",
 }
 
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+
 
 def get_claps_file():
     """Fetch claps.json from GitHub. Returns (data_dict, sha)."""
@@ -41,6 +44,16 @@ def save_claps_file(data, sha):
         payload["sha"] = sha
     resp = requests.put(GITHUB_API, headers=HEADERS, json=payload)
     resp.raise_for_status()
+
+
+def notify_telegram(message):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    requests.post(
+        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+        json={"chat_id": TELEGRAM_CHAT_ID, "text": message},
+        timeout=5,
+    )
 
 
 def normalise_url(url):
@@ -67,6 +80,7 @@ def add_clap():
     data, sha = get_claps_file()
     data[key] = data.get(key, 0) + 1
     save_claps_file(data, sha)
+    notify_telegram(f"New clap on {key} (total: {data[key]})")
     return jsonify({"url": key, "claps": data[key]})
 
 
